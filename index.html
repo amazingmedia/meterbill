@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bill Gallery</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+
+    <div id="login-box" class="flex h-screen items-center justify-center">
+        <div class="bg-white p-8 rounded-lg shadow-md w-96">
+            <h2 class="text-2xl font-bold mb-4 text-center">Login to Gallery</h2>
+            <input type="password" id="pass-input" class="w-full p-2 border rounded mb-4" placeholder="Password">
+            <button onclick="checkPass()" class="w-full bg-blue-600 text-white py-2 rounded">Enter</button>
+        </div>
+    </div>
+
+    <div id="gallery-box" class="hidden p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold">My Bills Storage</h1>
+            <button onclick="logout()" class="text-red-500">Logout</button>
+        </div>
+        <div id="image-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            </div>
+    </div>
+
+    <script>
+        // ၁။ သင်၏ Supabase အချက်အလက်များကို ဒီမှာထည့်ပါ
+        const SUPABASE_URL = "သင်၏_URL";
+        const SUPABASE_KEY = "သင်၏_ANON_KEY";
+        const ADMIN_PASS = "123456"; // သင်ပေးချင်တဲ့ password
+
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        function checkPass() {
+            const input = document.getElementById('pass-input').value;
+            if(input === ADMIN_PASS) {
+                localStorage.setItem('isLogged', 'true');
+                showGallery();
+            } else {
+                alert("Password မှားယွင်းနေပါသည်။");
+            }
+        }
+
+        async function showGallery() {
+            document.getElementById('login-box').classList.add('hidden');
+            document.getElementById('gallery-box').classList.remove('hidden');
+
+            // ၂။ 'bill' bucket ထဲက ပုံတွေကို ဆွဲထုတ်ခြင်း
+            const { data, error } = await _supabase.storage.from('bill').list('', {
+                limit: 50,
+                sortBy: { column: 'name', order: 'desc' }
+            });
+
+            if (data) {
+                const grid = document.getElementById('image-grid');
+                grid.innerHTML = '';
+                data.forEach(file => {
+                    if(file.name.includes('.')) { // ဖိုင်ဖြစ်မှယူမည်
+                        const { data: urlData } = _supabase.storage.from('bill').getPublicUrl(file.name);
+                        grid.innerHTML += `
+                            <div class="bg-white p-2 rounded shadow">
+                                <img src="${urlData.publicUrl}" class="w-full h-40 object-cover rounded cursor-pointer" onclick="window.open('${urlData.publicUrl}')">
+                                <p class="text-xs mt-2 text-gray-500 truncate">${file.name}</p>
+                            </div>
+                        `;
+                    }
+                });
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('isLogged');
+            location.reload();
+        }
+
+        // Check login state on page load
+        if(localStorage.getItem('isLogged') === 'true') {
+            showGallery();
+        }
+    </script>
+</body>
+</html>
